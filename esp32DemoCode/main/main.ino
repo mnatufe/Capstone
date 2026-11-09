@@ -1,7 +1,7 @@
 //Version 1.0.0
 #include setup.h
 
-#define I2C_DEV_ADDR 0x55
+#define I2C_DEV_ADDR 0x48
 
 void setup() {
   Serial.begin(115200);
