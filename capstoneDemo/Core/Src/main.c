@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "smartRack.h"
+#include <stdio.h>
 
 /* USER CODE END Includes */
 
@@ -33,8 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TEMPSENSOR_ADDR (0x48 << 1)
-#define TEMPSENSOR_TEMP_REG 0x00
+
 
 /* USER CODE END PD */
 
@@ -91,6 +91,7 @@ const osMessageQueueAttr_t fanQueue_attributes = {
   .name = "fanQueue"
 };
 /* USER CODE BEGIN PV */
+osMutexId_t i2cMutexHandle;
 
 /* USER CODE END PV */
 
@@ -159,6 +160,11 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
+  i2cMutexHandle = osMutexNew(NULL);
+
+  if (i2cMutexHandle == NULL) {
+      Error_Handler();
+  }
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
@@ -505,6 +511,41 @@ void readTemp(void *argument)
   {
 	//Read temp
 	sample.valid = readTempData(&sample.temp);
+	//TEST CODE
+	if (sample.valid) {
+	    char msg[64];
+
+	    int len = snprintf(msg, sizeof(msg),
+	                       "Temperature: %.2f C\r\n",
+	                       sample.temp);
+
+	    if (len > 0) {
+	        HAL_UART_Transmit(&huart2,
+	                          (uint8_t *)msg,
+	                          len,
+	                          100);
+	    }
+	}
+	else {
+	    char msg[] = "I2C READ FAILED\r\n";
+
+	    HAL_UART_Transmit(&huart2,
+	                      (uint8_t *)msg,
+	                      sizeof(msg) - 1,
+	                      100);
+	}
+	//TEST CODE END
+
+	//PRINT RECEIVED TEMP TO SERIAL TERMINAL
+	if (sample.valid) {
+	    char msg[64];
+	    int len = snprintf(msg, sizeof(msg), "Temperature: %.2f\n", sample.temp);
+	    if (len > 0) {
+	        HAL_UART_Transmit(&huart2, (uint8_t *)msg,
+	                          (len < sizeof(msg)) ? len : sizeof(msg) - 1, 100);
+	    }
+	}
+	//END PRINT
 
 	//send to control task
 	osMessageQueuePut(tempQueueHandle, &sample, 0U, 10U);
@@ -588,6 +629,29 @@ void setFan(void *argument)
 
 		//apply pwm value
 		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pwmValue);
+		//SEND FAN SPEED TO ESP32
+		// Acquire mutex before I2C transmission
+		if (osMutexAcquire(i2cMutexHandle, osWaitForever) == osOK) {
+
+		    // Send fan speed percentage to ESP32
+		    HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(
+		        &hi2c1,
+		        TEMPSENSOR_ADDR,
+		        &fanSpeed,
+		        1,
+		        100
+		    );
+
+		    // Release mutex
+		    osMutexRelease(i2cMutexHandle);
+
+		    // Check transmission status
+		    if (status != HAL_OK) {
+		        // I2C transmission failed
+		    }
+		}
+		//END SEND FAN SPEED
+		//HAL_I2C_Master_Transmit(&hi2c1, TEMPSENSOR_ADDR, &fanSpeed, 1, 100);
 	}
   }
   /* USER CODE END setFan */
