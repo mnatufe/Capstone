@@ -4,7 +4,6 @@
 #include "Wire.h"
 
 uint32_t i = 0;
-uint32_t randomNumber = random(0, 100);
 
 
 //Generate random number between 20 and 35 to send over i2c
@@ -22,10 +21,9 @@ void onRequest() {
 }
 
 void onReceive(int len) {
-  Serial.printf("onReceive[%d]: ", len);
   while (Wire.available()) {
-    Serial.write(Wire.read());
+    uint8_t fanSpeed = Wire.read();
+    Serial.printf("Received fan speed: %u%%\n", fanSpeed);
   }
-  Serial.println();
 }
 

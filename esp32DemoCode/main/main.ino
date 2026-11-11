@@ -9,9 +9,9 @@ void setup() {
   Serial.begin(115200);
   Wire.onRequest(onRequest);
   Wire.onReceive(onReceive);
-  Wire.begin(I2C_DEV_ADDR);
+  bool success = Wire.begin(0x48, 21, 22, 100000);
 
-  Serial.println("I2C Slave Initialized");
+  Serial.printf("I2C initialization: %s\n",success ? "SUCCESS" : "FAILED");
 }
 
 void loop() {
