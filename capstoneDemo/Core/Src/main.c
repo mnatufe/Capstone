@@ -177,10 +177,10 @@ int main(void)
 
   /* Create the queue(s) */
   /* creation of tempQueue */
-  tempQueueHandle = osMessageQueueNew (1, sizeof(tempData_t), &tempQueue_attributes);
+  tempQueueHandle = osMessageQueueNew (1, 8, &tempQueue_attributes);
 
   /* creation of fanQueue */
-  fanQueueHandle = osMessageQueueNew (1, sizeof(fanCommand_t), &fanQueue_attributes);
+  fanQueueHandle = osMessageQueueNew (1, 1, &fanQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -509,42 +509,60 @@ void readTemp(void *argument)
   /* Infinite loop */
   for(;;)
   {
+	//TEST CODE
+	  //Acquire Mutex for i2c comms
+	  if (osMutexAcquire(i2cMutexHandle, osWaitForever) == osOK)
+	  {
+	      HAL_StatusTypeDef status = HAL_I2C_IsDeviceReady(
+	          &hi2c1,
+	          TEMPSENSOR_ADDR,
+	          3,
+	          100
+	      );
+
+	      osMutexRelease(i2cMutexHandle); //release i2c mutex
+
+	      //Check if sensor available, print confirmation/failure message
+	      if (status == HAL_OK)
+	      {
+	          char msg[] = "ESP32 DETECTED\r\n";
+	          HAL_UART_Transmit(&huart2, (uint8_t *)msg,
+	                            sizeof(msg) - 1, 100);
+	      }
+	      else
+	      {
+	    	  char msg[48];
+	      	  int len = snprintf(msg, sizeof(msg),
+	      	                             "ESP32 NOT DETECTED, status=%d\r\n", (int)status);
+	      	  HAL_UART_Transmit(&huart2, (uint8_t *)msg, len, 100);
+	      }
+	  }
+	//TEST CODE END
 	//Read temp
 	sample.valid = readTempData(&sample.temp);
-	//TEST CODE
-	if (sample.valid) {
-	    char msg[64];
-
-	    int len = snprintf(msg, sizeof(msg),
-	                       "Temperature: %.2f C\r\n",
-	                       sample.temp);
-
-	    if (len > 0) {
-	        HAL_UART_Transmit(&huart2,
-	                          (uint8_t *)msg,
-	                          len,
-	                          100);
-	    }
-	}
-	else {
-	    char msg[] = "I2C READ FAILED\r\n";
-
-	    HAL_UART_Transmit(&huart2,
-	                      (uint8_t *)msg,
-	                      sizeof(msg) - 1,
-	                      100);
-	}
-	//TEST CODE END
-
 	//PRINT RECEIVED TEMP TO SERIAL TERMINAL
 	if (sample.valid) {
+	    char msg[64];
+	    int len = snprintf(msg, sizeof(msg), "Temperature: %.2f C\r\n", sample.temp);
+	    if (len > 0) {
+	        HAL_UART_Transmit(&huart2, (uint8_t *)msg, len, 100);
+	    }
+	}
+	//PRINT FAILURE MESSAGE IF VALUE NOT RECEIVED
+	else {
+	    char msg[] = "I2C READ FAILED\r\n";
+	    HAL_UART_Transmit(&huart2, (uint8_t *)msg, sizeof(msg) - 1, 100);
+	}
+
+	//PRINT RECEIVED TEMP TO SERIAL TERMINAL
+	/*if (sample.valid) {
 	    char msg[64];
 	    int len = snprintf(msg, sizeof(msg), "Temperature: %.2f\n", sample.temp);
 	    if (len > 0) {
 	        HAL_UART_Transmit(&huart2, (uint8_t *)msg,
 	                          (len < sizeof(msg)) ? len : sizeof(msg) - 1, 100);
 	    }
-	}
+	}*/
 	//END PRINT
 
 	//send to control task

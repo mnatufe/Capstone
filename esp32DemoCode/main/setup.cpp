@@ -5,7 +5,6 @@
 
 uint32_t i = 0;
 
-
 //Generate random number between 20 and 35 to send over i2c
 void onRequest() {
   float temperature = random(2000, 3501) / 100.0f;
@@ -22,8 +21,8 @@ void onRequest() {
 
 void onReceive(int len) {
   while (Wire.available()) {
-    uint8_t fanSpeed = Wire.read();
-    Serial.printf("Received fan speed: %u%%\n", fanSpeed);
+    uint8_t fanSpeed = Wire.read(); //Read received fan speed from STM32
+    Serial.printf("Received fan speed: %u%%\n", fanSpeed); //Print to console
   }
 }
 
